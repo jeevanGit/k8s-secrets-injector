@@ -59,7 +59,6 @@ func FixAuthMountPath(p string) string {
 	return path.Join(append([]string{"auth"}, pp...)...)
 }
 
-
 // Client returns a Vault *api.Client
 func (v *Vault) Client() *api.Client {
 	return v.client
@@ -89,4 +88,51 @@ func (v *Vault) Authenticate() (string, error) {
 		fmt.Errorf("login failed with: %s", strings.Join(s.Warnings, " - "))
 	}
 	return s.Auth.ClientToken, nil
+}
+
+// StoreToken in VaultTokenPath
+func (v *Vault) StoreToken(token string) error {
+	if err := ioutil.WriteFile(v.TokenPath, []byte(token), 0644); err != nil {
+		return errors.Wrap(err, "failed to store token")
+	}
+	return nil
+}
+
+// LoadToken from VaultTokenPath
+func (v *Vault) LoadToken() (string, error) {
+	content, err := ioutil.ReadFile(v.TokenPath)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to load token")
+	}
+	if len(content) == 0 {
+		return "", fmt.Errorf("found empty token")
+	}
+	return string(content), nil
+}
+
+// UseToken directly for requests with Vault
+func (v *Vault) UseToken(token string) {
+	v.client.SetToken(token)
+}
+
+// GetToken tries to load the vault token from VaultTokenPath
+// if token is not available, invalid or not renewable
+// and VaultReAuth is true, try to re-authenticate
+func (v *Vault) GetToken() (string, error) {
+	var empty string
+	token, err := v.LoadToken()
+	if err != nil {
+		if v.ReAuth {
+			return v.Authenticate()
+		}
+		return empty, errors.Wrapf(err, "failed to load token form: %s", v.TokenPath)
+	}
+	v.client.SetToken(token)
+	if _, err = v.client.Auth().Token().RenewSelf(v.TTL); err != nil {
+		if v.ReAuth {
+			return v.Authenticate()
+		}
+		return empty, errors.Wrap(err, "failed to renew token")
+	}
+	return token, nil
 }
