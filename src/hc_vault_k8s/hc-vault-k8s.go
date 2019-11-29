@@ -108,7 +108,7 @@ func NewFromEnvironment() (*Vault, error) {
 	}
 	v.ServiceAccountTokenPath = os.Getenv("SERVICE_ACCOUNT_TOKEN_PATH")
 	if v.ServiceAccountTokenPath == "" {
-		v.ServiceAccountTokenPath = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+		v.ServiceAccountTokenPath = ServiceAccountTokenPath
 	}
 	if s := os.Getenv("ALLOW_FAIL"); s != "" {
 		b, err := strconv.ParseBool(s)
