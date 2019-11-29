@@ -6,4 +6,5 @@ COPY . /
 FROM vault
 RUN apk add --no-cache --update ca-certificates curl jq
 COPY --from=builder ./bin/secret-injector /usr/local/bin/secret-injector
-ENTRYPOINT ["/bin/sh"]
+
+ENTRYPOINT ["/bin/sh", "-c", "/usr/local/bin/secret-injector && sleep 20000"]
