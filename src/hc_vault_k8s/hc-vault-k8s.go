@@ -47,17 +47,6 @@ type Vault struct {
 	client                  *api.Client
 }
 
-// FixAuthMountPath add the auth prefix
-// kubernetes      -> auth/kubernetes
-// auth/kubernetes -> auth/kubernetes
-// presumes a valid path
-func FixAuthMountPath(p string) string {
-	pp := strings.Split(strings.TrimLeft(p, "/"), "/")
-	if pp[0] == "auth" {
-		return path.Join(pp...) // already correct
-	}
-	return path.Join(append([]string{"auth"}, pp...)...)
-}
 
 // Client returns a Vault *api.Client
 func (v *Vault) Client() *api.Client {
@@ -89,6 +78,58 @@ func (v *Vault) Authenticate() (string, error) {
 	}
 	return s.Auth.ClientToken, nil
 }
+
+
+// NewFromEnvironment returns a initialized Vault type for authentication
+func NewFromEnvironment() (*Vault, error) {
+	v := &Vault{}
+	v.Role = os.Getenv("VAULT_ROLE")
+	v.TokenPath = os.Getenv("VAULT_TOKEN_PATH")
+	if v.TokenPath == "" {
+		return nil, fmt.Errorf("missing VAULT_TOKEN_PATH")
+	}
+	if s := os.Getenv("VAULT_REAUTH"); s != "" {
+		b, err := strconv.ParseBool(s)
+		if err != nil {
+			return nil, errors.Wrap(err, "1, t, T, TRUE, true, True, 0, f, F, FALSE, false, False are valid values for ALLOW_FAIL")
+		}
+		v.ReAuth = b
+	}
+	if s := os.Getenv("VAULT_TTL"); s != "" {
+		d, err := time.ParseDuration(s)
+		if err != nil {
+			return nil, errors.Wrapf(err, "%s is not a valid duration for VAULT_TTL", s)
+		}
+		v.TTL = int(d.Seconds())
+	}
+	v.AuthMountPath = FixAuthMountPath(AuthMountPath) // use default
+	if p := os.Getenv("VAULT_AUTH_MOUNT_PATH"); p != "" {
+		v.AuthMountPath = FixAuthMountPath(p) // if set, use value from environment
+	}
+	v.ServiceAccountTokenPath = os.Getenv("SERVICE_ACCOUNT_TOKEN_PATH")
+	if v.ServiceAccountTokenPath == "" {
+		v.ServiceAccountTokenPath = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+	}
+	if s := os.Getenv("ALLOW_FAIL"); s != "" {
+		b, err := strconv.ParseBool(s)
+		if err != nil {
+			return nil, errors.Wrap(err, "1, t, T, TRUE, true, True, 0, f, F, FALSE, false, False are valid values for ALLOW_FAIL")
+		}
+		v.AllowFail = b
+	}
+	// create vault client
+	vaultConfig := api.DefaultConfig()
+	if err := vaultConfig.ReadEnvironment(); err != nil {
+		return nil, errors.Wrap(err, "failed to read environment for vault")
+	}
+	var err error
+	v.client, err = api.NewClient(vaultConfig)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create vault client")
+	}
+	return v, nil
+}
+
 
 // StoreToken in VaultTokenPath
 func (v *Vault) StoreToken(token string) error {
@@ -150,4 +191,17 @@ func (v *Vault) NewRenewer(token string) (*api.Renewer, error) {
 		return nil, errors.Wrap(err, "failed to get token renewer")
 	}
 	return renewer, nil
+}
+
+
+// FixAuthMountPath add the auth prefix
+// kubernetes      -> auth/kubernetes
+// auth/kubernetes -> auth/kubernetes
+// presumes a valid path
+func FixAuthMountPath(p string) string {
+	pp := strings.Split(strings.TrimLeft(p, "/"), "/")
+	if pp[0] == "auth" {
+		return path.Join(pp...) // already correct
+	}
+	return path.Join(append([]string{"auth"}, pp...)...)
 }
