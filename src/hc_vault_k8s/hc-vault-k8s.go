@@ -136,3 +136,18 @@ func (v *Vault) GetToken() (string, error) {
 	}
 	return token, nil
 }
+
+// NewRenewer returns a *api.Renewer to renew the vault token regularly
+func (v *Vault) NewRenewer(token string) (*api.Renewer, error) {
+	v.client.SetToken(token)
+	// renew the token to get a secret usable for renewer
+	secret, err := v.client.Auth().Token().RenewSelf(v.TTL)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to renew-self token")
+	}
+	renewer, err := v.client.NewRenewer(&api.RenewerInput{Secret: secret})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get token renewer")
+	}
+	return renewer, nil
+}
