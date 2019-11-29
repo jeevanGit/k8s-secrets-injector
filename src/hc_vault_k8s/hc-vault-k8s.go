@@ -17,6 +17,8 @@ import (
 
 	"github.com/hashicorp/vault/api"
 	"github.com/pkg/errors"
+
+	"utils"
 )
 
 // Constants
@@ -68,7 +70,7 @@ func (v *Vault) Authenticate() (string, error) {
 	data["role"] = v.Role
 	data["jwt"] = jwt
 
-	s, err := vaultLogical(v.client).Write(path.Join(FixAuthMountPath(v.AuthMountPath), "login"), data)
+	s, err := vaultLogical(v.client).Write(path.Join(utils.FixAuthMountPath(v.AuthMountPath), "login"), data)
 	if err != nil {
 		return empty, errors.Wrapf(err, "login failed with role from environment variable VAULT_ROLE: %q", v.Role)
 	}
@@ -102,9 +104,9 @@ func NewFromEnvironment() (*Vault, error) {
 		}
 		v.TTL = int(d.Seconds())
 	}
-	v.AuthMountPath = FixAuthMountPath(AuthMountPath) // use default
+	v.AuthMountPath = utils.FixAuthMountPath(AuthMountPath) // use default
 	if p := os.Getenv("VAULT_AUTH_MOUNT_PATH"); p != "" {
-		v.AuthMountPath = FixAuthMountPath(p) // if set, use value from environment
+		v.AuthMountPath = utils.FixAuthMountPath(p) // if set, use value from environment
 	}
 	v.ServiceAccountTokenPath = os.Getenv("SERVICE_ACCOUNT_TOKEN_PATH")
 	if v.ServiceAccountTokenPath == "" {
@@ -191,17 +193,4 @@ func (v *Vault) NewRenewer(token string) (*api.Renewer, error) {
 		return nil, errors.Wrap(err, "failed to get token renewer")
 	}
 	return renewer, nil
-}
-
-
-// FixAuthMountPath add the auth prefix
-// kubernetes      -> auth/kubernetes
-// auth/kubernetes -> auth/kubernetes
-// presumes a valid path
-func FixAuthMountPath(p string) string {
-	pp := strings.Split(strings.TrimLeft(p, "/"), "/")
-	if pp[0] == "auth" {
-		return path.Join(pp...) // already correct
-	}
-	return path.Join(append([]string{"auth"}, pp...)...)
 }
