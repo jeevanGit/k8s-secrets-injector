@@ -38,7 +38,7 @@ var vaultLogical = func(c *api.Client) vaultLogicalWriter {
 }
 
 // Vault represents the configuration to get a valid Vault token
-type Vault struct {
+type HCVault struct {
 	Role                    string
 	TokenPath               string
 	ReAuth                  bool
@@ -51,12 +51,12 @@ type Vault struct {
 
 
 // Client returns a Vault *api.Client
-func (v *Vault) Client() *api.Client {
+func (v *HCVault) Client() *api.Client {
 	return v.client
 }
 
 // Authenticate with vault
-func (v *Vault) Authenticate() (string, error) {
+func (v *HCVault) Authenticate() (string, error) {
 	var empty string
 	// read jwt of serviceaccount
 	content, err := ioutil.ReadFile(v.ServiceAccountTokenPath)
@@ -70,21 +70,20 @@ func (v *Vault) Authenticate() (string, error) {
 	data["role"] = v.Role
 	data["jwt"] = jwt
 
-	s, err := vaultLogical(v.client).Write(path.Join(utils.FixAuthMountPath(v.AuthMountPath), "login"), data)
+	s, err := vaultLogical(v.client).Write( path.Join( utils.FixAuthMountPath(v.AuthMountPath), "login" ), data )
 	if err != nil {
 		return empty, errors.Wrapf(err, "login failed with role from environment variable VAULT_ROLE: %q", v.Role)
 	}
 	if len(s.Warnings) > 0 {
-		//return empty,
-		fmt.Errorf("login failed with: %s", strings.Join(s.Warnings, " - "))
+		return empty, fmt.Errorf("login failed with: %s", strings.Join(s.Warnings, " - "))
 	}
 	return s.Auth.ClientToken, nil
 }
 
 
 // NewFromEnvironment returns a initialized Vault type for authentication
-func NewFromEnvironment() (*Vault, error) {
-	v := &Vault{}
+func NewFromEnvironment() (*HCVault, error) {
+	v := &HCVault{}
 	v.Role = os.Getenv("VAULT_ROLE")
 	v.TokenPath = os.Getenv("VAULT_TOKEN_PATH")
 	if v.TokenPath == "" {
@@ -134,7 +133,7 @@ func NewFromEnvironment() (*Vault, error) {
 
 
 // StoreToken in VaultTokenPath
-func (v *Vault) StoreToken(token string) error {
+func (v *HCVault) StoreToken(token string) error {
 	if err := ioutil.WriteFile(v.TokenPath, []byte(token), 0644); err != nil {
 		return errors.Wrap(err, "failed to store token")
 	}
@@ -142,7 +141,7 @@ func (v *Vault) StoreToken(token string) error {
 }
 
 // LoadToken from VaultTokenPath
-func (v *Vault) LoadToken() (string, error) {
+func (v *HCVault) LoadToken() (string, error) {
 	content, err := ioutil.ReadFile(v.TokenPath)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to load token")
@@ -154,14 +153,14 @@ func (v *Vault) LoadToken() (string, error) {
 }
 
 // UseToken directly for requests with Vault
-func (v *Vault) UseToken(token string) {
+func (v *HCVault) UseToken(token string) {
 	v.client.SetToken(token)
 }
 
 // GetToken tries to load the vault token from VaultTokenPath
 // if token is not available, invalid or not renewable
 // and VaultReAuth is true, try to re-authenticate
-func (v *Vault) GetToken() (string, error) {
+func (v *HCVault) GetToken() (string, error) {
 	var empty string
 	token, err := v.LoadToken()
 	if err != nil {
@@ -181,7 +180,7 @@ func (v *Vault) GetToken() (string, error) {
 }
 
 // NewRenewer returns a *api.Renewer to renew the vault token regularly
-func (v *Vault) NewRenewer(token string) (*api.Renewer, error) {
+func (v *HCVault) NewRenewer(token string) (*api.Renewer, error) {
 	v.client.SetToken(token)
 	// renew the token to get a secret usable for renewer
 	secret, err := v.client.Auth().Token().RenewSelf(v.TTL)
