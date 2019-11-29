@@ -64,3 +64,29 @@ func FixAuthMountPath(p string) string {
 func (v *Vault) Client() *api.Client {
 	return v.client
 }
+
+// Authenticate with vault
+func (v *Vault) Authenticate() (string, error) {
+	var empty string
+	// read jwt of serviceaccount
+	content, err := ioutil.ReadFile(v.ServiceAccountTokenPath)
+	if err != nil {
+		return empty, errors.Wrap(err, "failed to read jwt token")
+	}
+	jwt := string(bytes.TrimSpace(content))
+
+	// authenticate
+	data := make(map[string]interface{})
+	data["role"] = v.Role
+	data["jwt"] = jwt
+
+	s, err := vaultLogical(v.client).Write(path.Join(FixAuthMountPath(v.AuthMountPath), "login"), data)
+	if err != nil {
+		return empty, errors.Wrapf(err, "login failed with role from environment variable VAULT_ROLE: %q", v.Role)
+	}
+	if len(s.Warnings) > 0 {
+		//return empty,
+		fmt.Errorf("login failed with: %s", strings.Join(s.Warnings, " - "))
+	}
+	return s.Auth.ClientToken, nil
+}
