@@ -58,3 +58,9 @@ func FixAuthMountPath(p string) string {
 	}
 	return path.Join(append([]string{"auth"}, pp...)...)
 }
+
+
+// Client returns a Vault *api.Client
+func (v *Vault) Client() *api.Client {
+	return v.client
+}
