@@ -2,8 +2,7 @@ FROM golang:1.12 AS builder
 WORKDIR /
 COPY . /
 
-#FROM alpine:3.8
-FROM vault
+FROM alpine:3.8
 RUN apk update && apk add --no-cache --update ca-certificates curl jq && update-ca-certificates
 COPY --from=builder ./bin/secret-injector /usr/local/bin/secret-injector
 
