@@ -42,7 +42,7 @@ push: container
 		docker push $(IMAGE)
 
 container: build
-		-docker build -t $(IMAGE) .
+		docker build -t $(IMAGE) .
 		rm -f ./bin/${APP}
 
 .PHONY: glide
