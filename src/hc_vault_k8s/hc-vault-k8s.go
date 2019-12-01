@@ -80,7 +80,6 @@ func (v *HCVault) Authenticate() (string, error) {
 	return s.Auth.ClientToken, nil
 }
 
-
 // NewFromEnvironment returns a initialized Vault type for authentication
 func NewFromEnvironment() (*HCVault, error) {
 	v := &HCVault{}
