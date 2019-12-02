@@ -17,13 +17,14 @@ import (
 
 	"github.com/hashicorp/vault/api"
 	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
 
 	"utils"
 )
 
 // Constants
 const (
-	AuthMountPath           = "auth/kubernetes"
+	AuthMountPath           = "auth/kubernetes" // default vault auth mount path
 	ServiceAccountTokenPath = "/var/run/secrets/kubernetes.io/serviceaccount/token"
 )
 
@@ -31,8 +32,6 @@ const (
 type vaultLogicalWriter interface {
 	Write(path string, data map[string]interface{}) (*api.Secret, error)
 }
-
-// vaultLogical will be overwritten by tests
 var vaultLogical = func(c *api.Client) vaultLogicalWriter {
 	return c.Logical()
 }
@@ -49,7 +48,6 @@ type HCVault struct {
 	client                  *api.Client
 }
 
-
 // Client returns a Vault *api.Client
 func (v *HCVault) Client() *api.Client {
 	return v.client
@@ -64,6 +62,8 @@ func (v *HCVault) Authenticate() (string, error) {
 		return empty, errors.Wrap(err, "failed to read jwt token")
 	}
 	jwt := string(bytes.TrimSpace(content))
+	log.Debugf("using jwt to login: %s", jwt)
+	log.Debugf("using Role to login: %s", v.Role)
 
 	// authenticate
 	data := make(map[string]interface{})
