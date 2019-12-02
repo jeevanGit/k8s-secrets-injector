@@ -23,8 +23,10 @@ build-mac: clean
 			-o ./bin/${APP}
 
 deploy: push
-	-kubectl delete -f ./test/k8s-spec-1.yml
-	kubectl apply -f ./test/k8s-spec-1.yml
+	-kubectl delete -f ./test/test-deployment.yaml
+	. ./setup/vars
+	envsubst < ./test/test-deployment.yaml| kubectl --namespace=${NAMESPACE} apply -f -
+	#kubectl apply -f ./test/test-deployment.yaml
 
 build: clean
 		echo "GOPATH: " ${GOPATH}
