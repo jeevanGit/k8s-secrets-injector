@@ -43,7 +43,7 @@ vault policy write $VAULT_ROLE secrets-read-policy.hcl
 
 # Create a role named, 'example' to map Kubernetes Service Account to
 #  Vault policies and default token TTL
-vault write auth/kubernetes/role/${VAULT_ROLE} bound_service_account_names=$SERVICEACCOUNT bound_service_account_namespaces=$NAMESPACE policies=$VAULT_ROLE ttl=240h
+vault write auth/kubernetes/role/${VAULT_ROLE} bound_service_account_names=$SERVICEACCOUNT bound_service_account_namespaces=$NAMESPACE policies=$VAULT_ROLE ttl=10h
 
 # test data for application ${APP_NAME} and namespace=${NAMESPACE}
 vault kv put secret/${APP_NAME}/${NAMESPACE}/mysql username="appuser" password=$(echo 'suP3r$e(Ret#' | base64)
