@@ -1,0 +1,11 @@
+{
+  "hashicorpvault": "${HC_IP}",
+  "VAULT_ROLE": "${VAULT_ROLE}",
+  "SERVICEACCOUNT": "${SERVICEACCOUNT}",
+  "VAULT_TOKEN_PATH": "/home/vault/.vault-token",
+  "VAULT_REAUTH": "true",
+  "VAULT_AUTH_MOUNT_PATH": "kubernetes",
+  "SERVICE_ACCOUNT_TOKEN_PATH": "/var/run/secrets/kubernetes.io/serviceaccount/token",
+  "VAULT_SKIP_VERIFY":  "true",
+  "VAULT_PATH": "appCode/"
+}
