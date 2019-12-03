@@ -13,52 +13,34 @@ spec:
     - name: vault-token
       emptyDir:
         medium: Memory
-    - name: config
-      configMap:
-        name: vault-agent-config
-        items:
-          - key: vault-agent-config.hcl
-            path: vault-agent-config.hcl
-          - key: consul-template-config.hcl
-            path: consul-template-config.hcl
     - name: shared-data
       emptyDir: {}
 
   containers:
-    - name: vault-agent-auth
-      image: vault
-      args:
-        [
-          "agent",
-          "-config=/etc/vault/vault-agent-config.hcl",
-          "-log-level=debug",
-        ]
-      env:
-        - name: VAULT_ADDR
-          value: http://23.99.212.238:8200
-
-      volumeMounts:
-        - name: config
-          mountPath: /etc/vault
-        - name: vault-token
-          mountPath: /home/vault
-        - name: shared-data
-          mountPath: /etc/secrets
-
     - name: injector
       image: securityopregistrytest.azurecr.io/secret-injector:v1alpha4
       imagePullPolicy: Always
       env:
         - name: hashicorpvault
-          value: http://23.99.212.238:8200
+          value: ${HC_IP}
         - name: VAULT_ROLE
           value: ${VAULT_ROLE}
         - name: SERVICEACCOUNT
           value: ${SERVICEACCOUNT}
+
         - name: MYSQL_CREDS
-          value: secret/${APP_NAME}/${NAMESPACE}/mysql@hashicorpvault
+          value: secret/${APP_NAME}/${NAMESPACE}/db2@hashicorpvault
         - name: MYDB2_CREDS
           value: secret/${APP_NAME}/${NAMESPACE}/mysql@hashicorpvault
+
+        - name: SECRET_INJECTOR_SECRET_NAME_secret_mysql
+          value: secret/${APP_NAME}/${NAMESPACE}/mysql
+        - name: SECRET_INJECTOR_MOUNT_PATH_secret_mysql
+          value: /etc/secrets
+        - name: SECRET_INJECTOR_SECRET_NAME_creds_db2
+          value: secret/${APP_NAME}/${NAMESPACE}/db2
+        - name: SECRET_INJECTOR_MOUNT_PATH_creds_db2
+          value: /etc/secrets
 
         - name: VAULT_TOKEN_PATH
           value: "/home/vault/.vault-token"
@@ -74,8 +56,13 @@ spec:
         - name: VAULT_SKIP_VERIFY
           value: "true"
 
+        - name: AzureKeyVault
+          value: aks-AC0001-keyvault
+        - name: env_secret_name
+          value: "secret1@AzureKeyVault"
+
       volumeMounts:
         - name: vault-token
-          mountPath: /home/vault
+          mountPath: /azure-keyvault
         - name: shared-data
           mountPath: /etc/secrets
