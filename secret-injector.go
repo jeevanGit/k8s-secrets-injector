@@ -20,8 +20,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	secinject "secretsinjector"
-	_ "hc_vault_k8s"
-	_ "hc_vault_kv"
+	"utils"
 )
 const (
 		logPrefix = "secret-injector:"
@@ -40,7 +39,7 @@ func init() {
 		FullTimestamp: true,
 	})
 	// setting debug mode
-	debug := secinject.GetEnvVariableByName("debug")
+	debug := utils.GetEnvVariableByName("debug")
 	if strings.EqualFold(debug, "true") {
 		log.SetLevel(log.DebugLevel)
 	} else {
@@ -50,38 +49,56 @@ func init() {
 	// custom auth
 	_ = os.Setenv("CUSTOM_AUTH_INJECT", "true")
 	// init for HC Vault
-	if hc := secinject.GetEnvVariableByName("hashicorpvault") ; hc != "" {
+	if hc := utils.GetEnvVariableByName("hashicorpvault") ; hc != "" {
 		_ = os.Setenv("VAULT_ADDR", hc)
 		log.Debugf("%s setting VAULT_ADDR to %s", logPrefix, hc)
 	}
 }
 
 //
-// the main
+// main function
 //
 func main() {
-
+//
+// HC Vault secrets
+//
 	vlt, err := secinject.NewHashicorpVault()
 	if err != nil {
 			log.Fatal(err)
 	}
-	if err = vlt.Prep(); err != nil  {
-		log.Fatal(err)
-	}
 	if err = vlt.PopulateSecrets(); err != nil  {
 		log.Fatal(err)
 	}
-	log.Debugf("Captured env vars: %v", vlt.EnvVars.Secrets)
-}
 
-func main_azure_keyvault() {
+	log.Debugf("Captured env vars:\n\t %v \n\n", vlt.EnvVars.Secrets)
+	log.Debugf("Captured file vars:\n\t %v \n\n", vlt.FileVars)
+
+	// apply secrets to Pod env
+	for k, v := range vlt.EnvVars.Secrets {
+		_ = os.Setenv(k, v)
+	}
+	// generate secret files
+	for k, v := range vlt.FileVars {
+		for _, s := range v.Secrets {
+
+			err := generateSecretsFile( k, "", s )
+			if err != nil {
+				log.Errorf("%s unable to generate secrets file:  %v", logPrefix, err.Error())
+			}
+
+		}
+	}
+
+	//
+	// Azure KeyVault secrets
+	//
+
 	// init
 	sv := secinject.NewAzureKVault()
 	// populate secrets from vault
-	err := sv.PopulateSecret( pullSecret )
+	err = sv.PopulateSecret( pullSecret )
 	if err != nil {
-		log.Errorf("%s unable to populate secrets:  %v", logPrefix, err.Error())
-		return
+		log.Errorf("%s errors while populating the secrets:  %v", logPrefix, err.Error())
 	}
 
 	// apply secrets to Pod env
@@ -142,7 +159,12 @@ func getSecret(vaultClient keyvault.BaseClient, vaultname string, secname string
 // Function  creates secrets file, writes secret to it and makes file read-only
 //
 func generateSecretsFile(mntPath, secName, secret string) error {
-	secretsFile := mntPath + "/" + secName
+	var secretsFile string
+	if secName != "" {
+		secretsFile = mntPath + "/" + secName
+	}else{
+		secretsFile = mntPath
+	}
 	_, err := os.Create(secretsFile)
 	if err != nil {
 		s := fmt.Sprintf("Error creating the file %s: %v", secretsFile, err.Error())
