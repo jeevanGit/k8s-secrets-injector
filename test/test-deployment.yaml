@@ -18,7 +18,7 @@ spec:
 
   containers:
     - name: injector
-      image: securityopregistrytest.azurecr.io/secret-injector:v1alpha4
+      image: securityopregistrytest.azurecr.io/secret-injector:v1alpha5
       imagePullPolicy: Always
       env:
         - name: hashicorpvault
@@ -27,39 +27,41 @@ spec:
           value: ${VAULT_ROLE}
         - name: SERVICEACCOUNT
           value: ${SERVICEACCOUNT}
+        - name: VAULT_PATH
+          value: "appCodes/aeo0/sample-express-backend/dev/"
 
         - name: MYSQL_CREDS
           value: secret/${APP_NAME}/${NAMESPACE}/db2@hashicorpvault
         - name: MYDB2_CREDS
           value: secret/${APP_NAME}/${NAMESPACE}/mysql@hashicorpvault
-
-        - name: SECRET_INJECTOR_SECRET_NAME_secret_mysql
+        - name: SECRET_INJECTOR_SECRET_NAME_1
           value: secret/${APP_NAME}/${NAMESPACE}/mysql
-        - name: SECRET_INJECTOR_MOUNT_PATH_secret_mysql
+        - name: SECRET_INJECTOR_MOUNT_PATH_1
           value: /etc/secrets
-        - name: SECRET_INJECTOR_SECRET_NAME_creds_db2
+        - name: SECRET_STORE_SYSTEM_1
+          value: hashicorpvault
+        - name: SECRET_INJECTOR_SECRET_NAME_2
           value: secret/${APP_NAME}/${NAMESPACE}/db2
-        - name: SECRET_INJECTOR_MOUNT_PATH_creds_db2
+        - name: SECRET_INJECTOR_MOUNT_PATH_2
           value: /etc/secrets
-
-        - name: VAULT_TOKEN_PATH
-          value: "/home/vault/.vault-token"
-        - name: VAULT_REAUTH
-          value: "true"
-        - name: VAULT_AUTH_MOUNT_PATH
-          value: "kubernetes"
-        - name: SERVICE_ACCOUNT_TOKEN_PATH
-          value: "/var/run/secrets/kubernetes.io/serviceaccount/token"
-
-        - name: debug
-          value: "true"
-        - name: VAULT_SKIP_VERIFY
-          value: "true"
+        - name: SECRET_STORE_SYSTEM_2
+          value: hashicorpvault
 
         - name: AzureKeyVault
           value: aks-AC0001-keyvault
-        - name: env_secret_name
-          value: "secret1@AzureKeyVault"
+
+        - name: db2_password
+          value: "db2password@AzureKeyVault"
+        - name: SECRET_INJECTOR_SECRET_NAME_3
+          value: db2password
+        - name: SECRET_INJECTOR_MOUNT_PATH_3
+          value: /etc/secrets
+        - name: SECRET_STORE_SYSTEM_3
+          value: AzureKeyVault
+
+        - name: debug
+          value: "true"
+
 
       volumeMounts:
         - name: vault-token
