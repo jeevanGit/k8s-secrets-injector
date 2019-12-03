@@ -1,16 +1,17 @@
+//
+//
 package main
 
 import (
 	"context"
 	"errors"
 	"fmt"
-	_ "github.com/spf13/viper"
+	"github.com/spf13/viper"
 	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
 	"os"
 	"os/exec"
-	_ "os/exec"
 	"strings"
 	"syscall"
 
@@ -33,6 +34,31 @@ var (
 //
 // initialize/set environment
 //
+func setIfNotSet(key, default_val string){
+	if v := utils.GetEnvVariableByName(key); v == "" {
+		log.Debugf("Env Var %s is missing", key)
+		if v = viper.GetString(key); v == "" {
+			os.Setenv(key, default_val)
+		}else{
+			os.Setenv(key, v)
+		}
+	}
+}
+// HC Vault init
+func initHCVault(){
+	viper.SetConfigName("config"); viper.AddConfigPath(".") ; viper.AddConfigPath("/"); viper.SetConfigType("json")
+	if err := viper.ReadInConfig(); err != nil {
+		log.Warning( fmt.Errorf("Fatal error config file: %s \n", err) )
+	}
+	setIfNotSet("VAULT_TOKEN_PATH", "/home/vault/.vault-token")
+	setIfNotSet("VAULT_REAUTH", "true")
+	setIfNotSet("VAULT_AUTH_MOUNT_PATH", "kubernetes")
+	setIfNotSet("SERVICE_ACCOUNT_TOKEN_PATH", "kubernetes")
+	setIfNotSet("SERVICE_ACCOUNT_TOKEN_PATH", "/var/run/secrets/kubernetes.io/serviceaccount/token")
+	setIfNotSet("VAULT_SKIP_VERIFY", "true")
+	viper.AutomaticEnv()
+}
+// Injector init
 func init() {
 	log.SetFormatter(&log.TextFormatter{
 		DisableColors: true,
@@ -40,28 +66,38 @@ func init() {
 	})
 	// setting debug mode
 	debug := utils.GetEnvVariableByName("debug")
-	if strings.EqualFold(debug, "true") {
-		log.SetLevel(log.DebugLevel)
-	} else {
-		log.SetLevel(log.InfoLevel)
-	}
+	if strings.EqualFold(debug, "true") { log.SetLevel(log.DebugLevel)	} else {	log.SetLevel(log.InfoLevel)	}
 	log.SetFormatter(&log.TextFormatter{})
+
 	// custom auth
 	_ = os.Setenv("CUSTOM_AUTH_INJECT", "true")
-	// init for HC Vault
+	// init settings for HC Vault
+	initHCVault()
+	if utils.GetEnvVariableByName("VAULT_ROLE") == "" {
+		log.Warningf("%s unable to read environment variable 'VAULT_ROLE'", logPrefix)
+	}
+	if utils.GetEnvVariableByName("SERVICEACCOUNT") == "" {
+		log.Warningf("%s unable to read environment variable 'SERVICEACCOUNT'", logPrefix)
+	}
+	if utils.GetEnvVariableByName("VAULT_PATH") == "" {
+		log.Warningf("%s unable to read environment variable 'VAULT_PATH'", logPrefix)
+	}
 	if hc := utils.GetEnvVariableByName("hashicorpvault") ; hc != "" {
 		_ = os.Setenv("VAULT_ADDR", hc)
 		log.Debugf("%s setting VAULT_ADDR to %s", logPrefix, hc)
+	}else{
+		log.Warningf("%s unable to read environment variable 'hashicorpvault'", logPrefix)
 	}
+
 }
 
 //
 // main function
 //
 func main() {
-//
-// HC Vault secrets
-//
+	//
+	// HC Vault secrets
+	//
 	vlt, err := secinject.NewHashicorpVault()
 	if err != nil {
 			log.Fatal(err)
@@ -69,7 +105,6 @@ func main() {
 	if err = vlt.PopulateSecrets(); err != nil  {
 		log.Fatal(err)
 	}
-
 	log.Debugf("Captured env vars:\n\t %v \n\n", vlt.EnvVars.Secrets)
 	log.Debugf("Captured file vars:\n\t %v \n\n", vlt.FileVars)
 
@@ -106,7 +141,7 @@ func main() {
 		_ = os.Setenv(sv.EnvVarSecrets[index].EnvVarName, sv.EnvVarSecrets[index].Secret)
 	}
 	for index, _ := range sv.FileSecrets {
-		err := generateSecretsFile( sv.FileSecrets[index].FileMntPath, sv.FileSecrets[index].SecName, sv.FileSecrets[index].Secret )
+		err := generateSecretsFile( sv.FileSecrets[index].FileMntPath, "", sv.FileSecrets[index].Secret )
 		if err != nil {
 			log.Errorf("%s unable to generate secrets file:  %v", logPrefix, err.Error())
 		}
