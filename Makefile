@@ -7,7 +7,7 @@ PROJECT?=
 include vars-az.mk
 
 APP?=secret-injector
-RELEASE?=v1alpha4
+RELEASE?=v1alpha5
 IMAGE?=${DOCKER_ORG}/${APP}:${RELEASE}
 ENV?=DEV
 
@@ -38,14 +38,16 @@ build: clean
 run: container
 		docker stop ${APP} || true && docker rm ${APP} || true
 		docker run --name ${APP} --rm \
-			$(IMAGE)
+			${IMAGE}
 
 push: container
-		docker push $(IMAGE)
+		docker push ${IMAGE}
 
 container: build
-		docker build -t $(IMAGE) .
+		source ./setup/vars && envsubst < ./config.template| cat > ./config.json -
+		docker build -t ${IMAGE} .
 		rm -f ./bin/${APP}
+		rm -f ./config.json
 
 .PHONY: glide
 glide:
