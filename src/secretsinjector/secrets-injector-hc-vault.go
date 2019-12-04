@@ -37,7 +37,8 @@ type HCVaultSecretsInjectorStruct struct {
 	EnvVars 		        EnvVarStruct // Map of secrets pairs
   FileVars            map[string]FileVarStruct  // map of File name to Map of secrets pairs
 }
-//
+
+// Create new HC vault client and populate the environment in it
 func NewHashicorpVault() (*HCVaultSecretsInjectorStruct, error) {
   var err error
   v := &HCVaultSecretsInjectorStruct{}
@@ -124,7 +125,7 @@ func NewHashicorpVault() (*HCVaultSecretsInjectorStruct, error) {
 
   return v, nil
 }
-//
+// Prepare HC vault secrets environment and VaultClients
 func (self *HCVaultSecretsInjectorStruct) Prep() error {
   //
   // Env Vars
@@ -163,7 +164,7 @@ func (self *HCVaultSecretsInjectorStruct) Prep() error {
 
   return nil
 }
-// 
+// Pull secrets from the vault and populate self.EnvVars & self.FileVars
 func (self *HCVaultSecretsInjectorStruct) PopulateSecrets() error {
 
   if err := self.Prep(); err != nil  {
@@ -185,25 +186,18 @@ func (self *HCVaultSecretsInjectorStruct) PopulateSecrets() error {
         self.EnvVars.Secrets[k] = string( j )
       }
 		}
-		// convert data
-    /*
-		data := make(map[string][]byte)
-		for k, v := range s {
-			data[k] = []byte(v.(string))
-			fmt.Printf("secret: %s", []byte(v.(string)))
-		}
-    */
+
 	}
 
   for f, s := range self.FileVars {
     for k, v := range s.Secrets {
-      log.Println("Attempt to read '", v, "' from vault")
+      log.Debugf("Attempt to read '%s' from HC vault", v)
   		s, err := self.VaultClients[strings.SplitN(v, "/", 2)[0]].Read(v)
   		if err != nil {
   			return err
   		}
   		if s == nil {
-  			log.Warning("Secret", v, "not found in the vault.")
+  			log.Warningf("Secret '%s' not found in the vault.", v)
   			continue
   		}else{
   			log.Debugf( "secret: %s has value: %s", v, s )
