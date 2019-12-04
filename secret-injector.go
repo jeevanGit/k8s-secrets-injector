@@ -98,29 +98,30 @@ func main() {
 	//
 	// HC Vault secrets
 	//
+
+	// new instance of HC vault client
 	vlt, err := secinject.NewHashicorpVault()
 	if err != nil {
 			log.Fatal(err)
 	}
-	if err = vlt.PopulateSecrets(); err != nil  {
+	if err = vlt.PopulateSecrets(); err != nil  { // alright, lets pull 'em, out of There! Push, push! Push! Oh, no.. thats pull, pull..
 		log.Fatal(err)
 	}
-	log.Debugf("Captured env vars:\n\t %v \n\n", vlt.EnvVars.Secrets)
-	log.Debugf("Captured file vars:\n\t %v \n\n", vlt.FileVars)
+	//log.Debugf("Captured env vars:\n\t %v \n\n", vlt.EnvVars.Secrets)
+	//log.Debugf("Captured file vars:\n\t %v \n\n", vlt.FileVars)
 
-	// apply secrets to Pod env
+	// set secrets as  env vars
 	for k, v := range vlt.EnvVars.Secrets {
 		_ = os.Setenv(k, v)
 	}
 	// generate secret files
-	for k, v := range vlt.FileVars {
-		for _, s := range v.Secrets {
+	for k, v := range vlt.FileVars { // itterate through all files we came know of
+		for _, s := range v.Secrets {	// each file may or may not have many many secrets.. who know...
 
 			err := generateSecretsFile( k, "", s )
 			if err != nil {
 				log.Errorf("%s unable to generate secrets file:  %v", logPrefix, err.Error())
 			}
-
 		}
 	}
 
@@ -129,9 +130,9 @@ func main() {
 	//
 
 	// init
-	sv := secinject.NewAzureKVault()
+	sv := secinject.NewAzureKVault() // oh lala we have new AZ vault! Shiny!
 	// populate secrets from vault
-	err = sv.PopulateSecret( pullSecret )
+	err = sv.PopulateSecret( pullSecret ) // err..  okay, Doc, pull em!
 	if err != nil {
 		log.Errorf("%s errors while populating the secrets:  %v", logPrefix, err.Error())
 	}
