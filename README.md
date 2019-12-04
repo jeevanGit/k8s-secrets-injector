@@ -5,11 +5,13 @@ Repo hosts Kubernetes Secrets Injector init-container to retrieve secrets/keys f
 
 ## Overview
 
-This project offer the component for handling Hashicorp Vault Secrets in Kubernetes:
+This project offer the component for handling Azure KeyVault and Hashicorp Vault Secrets in Kubernetes:
 
 * Hashicorp Vault Vault Secrets Injector
+* Azure KeyVault Vault Secrets Injector
 
-The **Hashicorp Vault Vault Secrets Injector** (Secrets Injector for short) is a Kubernetes Mutating Webhook that transparently injects Hashicorp Vault secrets as environment variables into programs running in containers, without touching disk or in any other way expose the actual secret content outside the program.
+
+The **Hashicorp Vault and Azure KeyVault Secrets Injector** (Secrets Injector for short) is a Kubernetes Mutating Webhook that transparently injects Hashicorp Vault secrets as environment variables into programs running in containers, without touching disk or in any other way expose the actual secret content outside the program.
 
 The motivation behind this project was:
 
@@ -25,16 +27,22 @@ Use the Secrets Injector if:
 * the application running in the container support getting secrets as environment variables and as a files
 * secret environment variable values should not be revealed to Kubernetes resources like Pod specs, stored on disks, visible in logs or exposed in any way other than in-memory for the application
 
-## How it works
+## Retrieving secrets from Hashicorp Vault: How it works
 
 The Secrets Injector will start processing containers containing one or more environment placeholders like below:
 
 ```
 env:
-- name: vault_addr
+- name: hashicorpvault
   value: <name of HashicorpVault>
+- name: VAULT_PATH
+  value: <root path to secrets listed below>
+
 - name: <name of environment variable>
-  value: <name of AzureKeyVaultSecret>@azurekeyvault
+  value: <name of Secret>@hashicorpvault
+
+- name: <name of another environment variable>
+  value: <name of another Secret>@hashicorpvault
 
 ...
 ```
@@ -42,6 +50,10 @@ env:
 It will start by injecting a init-container into the Pod. This init-container copies over the `secret-injector` executable to a share volume between the init-container and the original container. It then changes either the CMD or ENTRYPOINT, depending on which was used by the original container, to use the `secret-injector` executable instead, and pass on the "old" command as parameters to this new executable. The init-container will then complete and the original container will start.
 
 When the original container starts it will execute the `secret-injector` command which will download any Hashicorp Vault secrets, identified by the environment placeholders above. The remaining step is for `secret-injector` to execute the original command and params, pass on the updated environment variables with real secret values. This way all secrets gets injected transparently in-memory during container startup, and not reveal any secret content to the container spec, disk or logs.
+
+
+## Retrieving secrets from Azure KeyVault: How it works
+
 
 
 ## Build Secrets Injector (use Azure environment)
