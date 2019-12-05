@@ -12,12 +12,7 @@ import (
 	_ "github.com/Azure/azure-sdk-for-go/profiles/latest/keyvault/keyvault"
 	"utils"
 )
-const (
-	azureVaultVarName      = "AzureKeyVault"
-	patternSecretName      = "secret_injector_secret_name_"
-	patternSecretMountPath = "secret_injector_mount_path_"
-	patternStoreSystem		 = "secret_store_system_"
-)
+
 //------------------------------------------------------------------------------
 // Secret-Vault Env Variable struct
 type SecretVaultEnvVariableStruct struct {
