@@ -14,8 +14,6 @@ import (
   "utils"
 )
 
-var vaultOrigins          = [...]string {"hashicorpvault", "AzureKeyVault"}
-
 const (
 
     hcVaultVarName         = "hashicorpvault"
@@ -25,6 +23,9 @@ const (
   	patternStoreSystem		= "secret_store_system_"
     vaultPathConst          = "VAULT_PATH"
 )
+
+var vaultOrigins          = [...]string {hcVaultVarName, azureVaultVarName}
+
 
 // describes the structure of any Secret (vault-agnostic)
 type SecretStruct struct {
@@ -41,14 +42,15 @@ type SecretStruct struct {
 
 // struct describes the chain of secrets
 type SecretChainStruct struct {
-  Secrets map[string]SecretStruct
+  Secrets []SecretStruct
 }
 
 // generates brand new Chain of Secrets)
 func NewSecretChain() (*SecretChainStruct, error){    // think of it as Chamber of The Secrets..
 
   scs := &SecretChainStruct{}
-  scs.Secrets = make(map[string]SecretStruct)
+  // scs.Secrets = make(map[string]SecretStruct)
+  scs.Secrets = []SecretStruct{}
   if err := scs.init(); err != nil {  // Huston, we have a problem
     return scs, errors.New( fmt.Sprintf("error: %s ", err.Error() ) )
   }
@@ -125,9 +127,7 @@ func (self *SecretChainStruct) parse(key, val string) (*SecretStruct, error) {
 // adding new secret into the chain with the key as "name-of-the-secret:origin-vault"
 //  secrets may have the same names across the vaults
 func (self *SecretChainStruct) add(s SecretStruct) {
-  if s.EnvVar != "" {
-    self.Secrets[s.Name + "-" + s.Origin + "-ev"] = s
-  } else {
-    self.Secrets[s.Name + "-" + s.Origin + "-file"] = s
-  }
+  // stack them up, folks!
+  self.Secrets = append(self.Secrets, s)
+
 }
