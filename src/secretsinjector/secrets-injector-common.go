@@ -53,16 +53,20 @@ func NewSecretChain() (*SecretChainStruct, error){    // think of it as Chamber 
   }
   return scs, nil
 }
+
 // Initialize the secrets chain
 func (self *SecretChainStruct) init() error {
 
   for _, pair := range os.Environ() { // go through env vars one by one
     kv := strings.SplitN( pair , "=" , 2 )  // and try to identify the patters
     if kv[0] != "" && kv[1] != "" {
+
       s, err := self.parse(kv[0], kv[1])
-      if err == nil { self.add(*s) }
+      if err == nil { self.add(*s) } // if teh baby came back with no error.. than its kosher
+
     }
    }
+
   return nil
 }
 // function to parse env variable into SecretStruct
@@ -71,16 +75,15 @@ func (self *SecretChainStruct) parse(key, val string) (*SecretStruct, error) {
   v := &SecretStruct{}
 
   log.Debugf("----> entry %s - %s", key, val)
-
   // check if var ends with "@<something>". Use vaultOrigins as list of all possible "something"s
   if strings.Contains ( strings.ToLower(val), "@" ){  // env vars secrets..
-    for _, item := range vaultOrigins {
+    for _, item := range vaultOrigins { // all possible "something"s
       if strings.HasSuffix( strings.ToLower(val), "@" + item ) { // this is env variable secret
         log.Debugf("--> parsing %s - %s , and it matches with %s", key, val, "@" + item)
         v.Name = strings.TrimSuffix( strings.ToLower(val), "@" + item )
         v.Origin = item
         v.EnvVar = key
-        // lookup VAULT_PATH to find path within the vault (it could be empty and thats cool..  totaly cool..)
+        // lookup VAULT_PATH to find path within the vault (it could be empty and that's cool..  totaly cool..)
         v.VaultPath = utils.GetEnvVariableByName( vaultPathConst )
       }
     }
@@ -89,8 +92,6 @@ func (self *SecretChainStruct) parse(key, val string) (*SecretStruct, error) {
 
     if strings.HasPrefix( strings.ToLower(key), patternSecretName ) {             // see if var name matches SECRET_INJECTOR_SECRET_NAME_<index>
       secIndex := strings.TrimPrefix( strings.ToLower(key), patternSecretName )   // <index>
-
-      log.Debugf("--> parsing %s - %s , and it matches with %s", key, val, patternSecretName)
 
       // look up corresponding Store System env var - it determines the origin vault for the secret
       v.Origin = utils.GetEnvVariableByName( patternStoreSystem + secIndex ) // see if var name matches SECRET_STORE_SYSTEM_<index>
@@ -105,8 +106,8 @@ func (self *SecretChainStruct) parse(key, val string) (*SecretStruct, error) {
         if v.FilePath == "" {   // finding SECRET_INJECTOR_MOUNT_PATH_<index>
           return v, errors.New( fmt.Sprintf("Missing second set of env variables for secret %s: '%s'", v.Name, patternSecretMountPath + v.Name ) )
         }
-        // Now, its Xmas time! Lets construct the name of the secret within the vault..
-        // set actual name of secret within vault
+        // ho-ho-ho, its Xmas time! Lets construct the name of the secret within the vault..
+        // set actual name of secret within vault & file's name which is the same as the name of the secret.. no?
         v.Name = val
         v.File = val
         // lookup VAULT_PATH to find path within the vault (it could be empty and thats cool..  totaly cool..)
