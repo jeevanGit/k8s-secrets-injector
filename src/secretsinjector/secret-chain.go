@@ -1,4 +1,4 @@
-// Module hosts common components used across the package
+// Module hosts SecretStruct and SecretChain components used across the package
 //
 
 package secretsinjector
@@ -71,12 +71,12 @@ func (self *SecretChainStruct) init() error {
 
   return nil
 }
+
 // function to parse env variable into SecretStruct
 //  assuming the pattern already detected
 func (self *SecretChainStruct) parse(key, val string) (*SecretStruct, error) {
   v := &SecretStruct{}
 
-  log.Debugf("----> entry %s - %s", key, val)
   // check if var ends with "@<something>". Use vaultOrigins as list of all possible "something"s
   if strings.Contains ( strings.ToLower(val), "@" ){  // might be env vars secrets..
     for _, item := range vaultOrigins { // all possible "something"s
@@ -90,7 +90,7 @@ func (self *SecretChainStruct) parse(key, val string) (*SecretStruct, error) {
       }
     }
     return v, nil
-  }else{  // now.. file secrets..:) here come the bride..
+  }else{  // now.. file secrets..:) here comes the bride..
 
     if strings.HasPrefix( strings.ToLower(key), patternSecretName ) {             // see if var name matches SECRET_INJECTOR_SECRET_NAME_<index>
       secIndex := strings.TrimPrefix( strings.ToLower(key), patternSecretName )   // <index>
