@@ -51,6 +51,42 @@ It will start by injecting a init-container into the Pod. This init-container co
 
 When the original container starts it will execute the `secret-injector` command which will download any Hashicorp Vault secrets, identified by the environment placeholders above. The remaining step is for `secret-injector` to execute the original command and params, pass on the updated environment variables with real secret values. This way all secrets gets injected transparently in-memory during container startup, and not reveal any secret content to the container spec, disk or logs.
 
+### Kubernetes Auth Method
+
+The recommanded way for the authentication is the Kubernetes auth method. There for you need a service account for the communication between Vault and the Secrets Injector. If you installed the operator via Helm this service account is created for you. The name of the created service account is secrets-operator. Use the following commands to set the environment variables for the activation of the Kubernetes auth method:
+
+```
+export SECRETS_OPERATOR_NAMESPACE=$(kubectl get sa secrets-operator -o jsonpath="{.metadata.namespace}")
+export VAULT_SECRET_NAME=$(kubectl get sa secrets-operator -o jsonpath="{.secrets[*]['name']}")
+export SA_JWT_TOKEN=$(kubectl get secret $VAULT_SECRET_NAME -o jsonpath="{.data.token}" | base64 --decode; echo)
+export SA_CA_CRT=$(kubectl get secret $VAULT_SECRET_NAME -o jsonpath="{.data['ca\.crt']}" | base64 --decode; echo)
+export K8S_HOST=$(kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}')
+```
+
+```
+# Verfify the environment variables
+env | grep -E 'SECRETS_OPERATOR_NAMESPACE|VAULT_SECRET_NAME|SA_JWT_TOKEN|SA_CA_CRT|K8S_HOST'
+```
+
+Enable the Kubernetes auth method at the default path (auth/kubernetes) and finish the configuration of Vault:
+
+```
+vault auth enable kubernetes
+
+# Tell Vault how to communicate with the Kubernetes cluster
+vault write auth/kubernetes/config \
+  token_reviewer_jwt="$SA_JWT_TOKEN" \
+  kubernetes_host="$K8S_HOST" \
+  kubernetes_ca_cert="$SA_CA_CRT"
+
+# Create a role named, 'secrets-operator' to map Kubernetes Service Account to Vault policies and default token TTL
+vault write auth/kubernetes/role/secrets-operator \
+  bound_service_account_names="secrets-operator" \
+  bound_service_account_namespaces="$SECRETS_OPERATOR_NAMESPACE" \
+  policies=ecrets-operator \
+  ttl=24h
+```
+
 
 ## Retrieving secrets from Azure KeyVault: How it works
 
