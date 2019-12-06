@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"strings"
 	"syscall"
+	"encoding/json"
 
 	"github.com/Azure/azure-sdk-for-go/profiles/latest/keyvault/keyvault"
 	kvauth "github.com/Azure/azure-sdk-for-go/services/keyvault/auth"
@@ -36,7 +37,7 @@ var (
 //
 func setIfNotSet(key, default_val string){
 	if v := utils.GetEnvVariableByName(key); v == "" {
-		log.Debugf("Env Var %s is missing", key)
+		log.Warningf("> environment variable %s is missing", key)
 		if v = viper.GetString(key); v == "" {
 			os.Setenv(key, default_val)
 		}else{
@@ -91,10 +92,33 @@ func init() {
 
 }
 
+func main() {
+
+	s, err := secinject.NewSecretChain()
+	if err != nil {
+		log.Errorf("%s unable to generate secrets chain:  %v", logPrefix, err.Error())
+	}
+
+	prettyJSON, _ := json.MarshalIndent(s, "", "    ")
+	//log.Debugf("s: %s\n", string(prettyJSON) )
+	fmt.Printf("%s\n", string(prettyJSON))
+
+	az, err := secinject.NewAzKVault()
+	if err != nil {
+		log.Errorf("%s unable to generate secrets chain:  %v", logPrefix, err.Error())
+	}
+
+	prettyJSON, _ = json.MarshalIndent(az.Chain, "", "    ")
+	//log.Debugf("s: %s\n", string(prettyJSON) )
+	fmt.Printf("%s\n", string(prettyJSON))
+
+}
+
+
 //
 // main function
 //
-func main() {
+func main_good() {
 	//
 	// HC Vault secrets
 	//
