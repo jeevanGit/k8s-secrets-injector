@@ -17,11 +17,6 @@ import (
   "utils"
 )
 
-const (
-	hcVaultVarName         = "hashicorpvault"
-)
-
-
 
 // map of File Var and Secret path
 type FileVarStruct struct {
@@ -31,14 +26,16 @@ type FileVarStruct struct {
 type EnvVarStruct struct {
   Secrets map[string]string
 }
+
 // Secrets Injector struct
 type HCVaultSecretsInjectorStruct struct {
   Vault               *hcvault.HCVault
   VaultClients        map[string]*kv.VaultClient
   VaultToken          string
-	EnvVars 		        EnvVarStruct // Map of secrets pairs for environment variables
+  EnvVars 		        EnvVarStruct // Map of secrets pairs for environment variables
   // One file may have multiple secrets
   FileVars            map[string]FileVarStruct  // map of File name to Map of secret pairs (secret name - actual secret)
+  //Vars  map[string]SecretStruct // map of secret name to struct SecretStruct
 }
 
 // Create new HC vault client and populate the environment in it
@@ -63,6 +60,7 @@ func NewHashicorpVault() (*HCVaultSecretsInjectorStruct, error) {
   v.EnvVars = EnvVarStruct{}
   v.EnvVars.Secrets = make(map[string]string)
 
+
   // populate EnvVars.Secrets with actial values from teh env
   for _, pair := range os.Environ() {
     kv := strings.SplitN( pair , "=" , 2 )
@@ -71,6 +69,7 @@ func NewHashicorpVault() (*HCVaultSecretsInjectorStruct, error) {
       v.EnvVars.Secrets[kv[0]] = strings.TrimSuffix( strings.ToLower(kv[1]), "@" + hcVaultVarName )
     }
   }
+
 
   // populate FileVars.Secrets map with actial values from the env
   // Example:
@@ -96,8 +95,7 @@ func NewHashicorpVault() (*HCVaultSecretsInjectorStruct, error) {
         storeSystem := utils.GetEnvVariableByName( patternStoreSystem + secVar ) // see if var name matches SECRET_STORE_SYSTEM_<something>
         if storeSystem == "" {
 
-          s := fmt.Sprintf("Missing Store System env variable for secret %s: '%s' - can not determine Vault origin. Skipping secret ''.", secVar, patternStoreSystem + secVar, secVar )
-          return v, errors.New(s)
+          return v, errors.New( fmt.Sprintf("Missing Store System env variable for secret %s: '%s' - can not determine Vault origin. Skipping secret ''.", secVar, patternStoreSystem + secVar, secVar ) )
 
         }else{  // aha! baby is comming from HC!
 
@@ -110,7 +108,7 @@ func NewHashicorpVault() (*HCVaultSecretsInjectorStruct, error) {
               s := fmt.Sprintf("Missing second set of env variables for secret %s: '%s'", secVar, patternSecretMountPath + secVar )
               return v, errors.New(s)
             }
-            newKey := strings.TrimSuffix((mountPath, "/")) + "/" + secVar
+            newKey := strings.TrimSuffix(mountPath, "/") + "/" + secVar
 /*
             if strings.HasSuffix(mountPath, "/") {
               newKey = mountPath + secVar
