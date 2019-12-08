@@ -66,7 +66,7 @@ func (self *SecretChainStruct) init() error {
     if kv[0] != "" && kv[1] != "" {
 
       s, err := self.parse(kv[0], kv[1])
-      if err == nil { self.add(*s) } // if teh baby came back with no error.. than its kosher
+      if err == nil { self.add(*s)  } // if teh baby came back with no error.. than its kosher
 
     }
    }
@@ -117,11 +117,10 @@ func (self *SecretChainStruct) parse(key, val string) (*SecretStruct, error) {
         // lookup VAULT_PATH to find path within the vault (it could be empty and thats cool..  totaly cool..)
         v.VaultPath = utils.GetEnvVariableByName( vaultPathConst )   // Here's a little TODO: design how distinguish vault path across diff vaults (just in case of many vaults and potentialy diff types)
       }
-
+      return v, nil
     }
-    return v, nil
   }
-  return v, errors.New( fmt.Sprintf("Skipping varibale: %s", key ) )
+  return nil, errors.New( fmt.Sprintf("Skipping varibale: %s", key ) )
 }
 
 // adding new secret into the chain with the key as "name-of-the-secret:origin-vault"
