@@ -31,9 +31,9 @@ spec:
           value: "appCodes/aeo0/sample-express-backend/dev/"
 
         - name: MYSQL_CREDS
-          value: secret/${APP_NAME}/${NAMESPACE}/db2@hashicorpvault
+          value: db2@hashicorpvault
         - name: MYDB2_CREDS
-          value: secret/${APP_NAME}/${NAMESPACE}/mysql@hashicorpvault
+          value: mysql@hashicorpvault
         - name: SECRET_INJECTOR_SECRET_NAME_1
           value: mysql_creds
         - name: SECRET_INJECTOR_MOUNT_PATH_1
@@ -50,7 +50,7 @@ spec:
         - name: AzureKeyVault
           value: aks-AC0001-keyvault
 
-        - name: db2_password
+        - name: db2_password_Var
           value: "db2password@AzureKeyVault"
         - name: SECRET_INJECTOR_SECRET_NAME_3
           value: db2password
