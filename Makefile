@@ -7,7 +7,7 @@ PROJECT?=
 include vars-az.mk
 
 APP?=secret-injector
-RELEASE?=v1alpha5
+RELEASE?=v1alpha6
 IMAGE?=${DOCKER_ORG}/${APP}:${RELEASE}
 ENV?=DEV
 
@@ -24,8 +24,7 @@ build-mac: clean
 
 deploy: push
 	-kubectl delete -f ./test/test-deployment.yaml
-	. ./setup/vars
-	envsubst < ./test/test-deployment.yaml| kubectl --namespace=${NAMESPACE} apply -f -
+	source ./setup/vars && envsubst < ./test/test-deployment.yaml| kubectl --namespace=${NAMESPACE} apply -f -
 	#kubectl apply -f ./test/test-deployment.yaml
 
 build: clean
