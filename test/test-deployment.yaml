@@ -18,9 +18,11 @@ spec:
 
   containers:
     - name: injector
-      image: securityopregistrytest.azurecr.io/secret-injector:v1alpha5
+      image: securityopregistrytest.azurecr.io/secret-injector:v1alpha6
       imagePullPolicy: Always
       env:
+        - name: VAULT_ADDR
+          value: ${HC_IP}
         - name: hashicorpvault
           value: ${HC_IP}
         - name: VAULT_ROLE
@@ -28,24 +30,23 @@ spec:
         - name: SERVICEACCOUNT
           value: ${SERVICEACCOUNT}
         - name: VAULT_PATH
-          value: "appCodes/aeo0/sample-express-backend/dev/"
+          value: "secret/appCodes/aeo0/sample-express-backend/dev/"
 
-        - name: MYSQL_CREDS
-          value: db2@hashicorpvault
         - name: MYDB2_CREDS
           value: mysql@hashicorpvault
         - name: SECRET_INJECTOR_SECRET_NAME_1
-          value: mysql_creds
+          value: mysql
         - name: SECRET_INJECTOR_MOUNT_PATH_1
           value: /etc/secrets
         - name: SECRET_STORE_SYSTEM_1
           value: hashicorpvault
         - name: SECRET_INJECTOR_SECRET_NAME_2
-          value: db2_creds
+          value: db2
         - name: SECRET_INJECTOR_MOUNT_PATH_2
           value: /etc/secrets
         - name: SECRET_STORE_SYSTEM_2
           value: hashicorpvault
+
 
         - name: AzureKeyVault
           value: aks-AC0001-keyvault
