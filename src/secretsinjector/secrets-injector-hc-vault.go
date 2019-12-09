@@ -13,6 +13,7 @@ import (
 
 	hcvault "hc_vault_k8s"
 	kv "hc_vault_kv"
+	"secretschain"
 )
 
 
@@ -21,17 +22,17 @@ type HCVaultClientStruct struct {
   	Vault               *hcvault.HCVault
   	VaultClients        map[string]*kv.VaultClient
   	VaultToken          string
-	Chain 				*SecretChainStruct // Chain of secrets populated from the env vars
+	Chain 				*secretschain.SecretChainStruct // Chain of secrets populated from the env vars
 }
 
 // Create new HC vault client and populate the environment in it
-func NewHashicorpVaultClient(ch *SecretChainStruct) (*HCVaultClientStruct, error) {
+func NewHashicorpVaultClient(ch *secretschain.SecretChainStruct) (*HCVaultClientStruct, error) {
 
 	var err error
   	v := &HCVaultClientStruct{}
 	v.VaultClients = make(map[string]*kv.VaultClient) // init map of VaultClient's
 	if ch == nil {
-		v.Chain, err = NewSecretChain()		// let's spin up the secrets Chain and init it with the env..
+		v.Chain, err = secretschain.NewSecretChain()		// let's spin up the secrets Chain and init it with the env..
 	}else{
 		v.Chain = ch
 	}
@@ -56,7 +57,7 @@ func NewHashicorpVaultClient(ch *SecretChainStruct) (*HCVaultClientStruct, error
 
 	// this is main part
 	for idx, _ := range v.Chain.Secrets { // loop through all the secrets we fished out from the env.
-		if v.Chain.Secrets[idx].Origin == hcVaultVarName { // filter out everything but Hashicrp origins
+		if v.Chain.Secrets[idx].Origin == secretschain.HcVaultVarName { // filter out everything but Hashicrp origins
 			log.Debugf("Chain secrets with the index of %d looks like: %v", idx, v.Chain.Secrets[idx])
 			// Huston, we have Take Off!
 			// here is where we're doing some damage and pulling secrets
@@ -86,7 +87,7 @@ func (self *HCVaultClientStruct) Prep() error { // some cleaning and cleansing..
 	secrets := make(map[string]string)
 	// prep cycle
 	for idx, _ := range self.Chain.Secrets { // preparing vault clients one by one.
-		if self.Chain.Secrets[idx].Origin == hcVaultVarName {
+		if self.Chain.Secrets[idx].Origin == secretschain.HcVaultVarName {
 			//k := self.Chain.Secrets[idx].Name
 			//v := self.Chain.Secrets[idx].VaultPath
 
