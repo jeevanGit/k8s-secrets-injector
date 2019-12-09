@@ -3,26 +3,21 @@
 package main
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"github.com/spf13/viper"
 	"io/ioutil"
-	"net/http"
-	"net/http/httputil"
 	"os"
 	"os/exec"
 	"strings"
 	"syscall"
 	"encoding/json"
 
-	"github.com/Azure/azure-sdk-for-go/profiles/latest/keyvault/keyvault"
-	kvauth "github.com/Azure/azure-sdk-for-go/services/keyvault/auth"
-	"github.com/Azure/go-autorest/autorest"
 	log "github.com/sirupsen/logrus"
 
 	secinject "secretsinjector"
 	"utils"
+	"secretschain"
 )
 const (
 		logPrefix = "secret-injector:"
@@ -94,84 +89,42 @@ func init() {
 
 func main() {
 
-	s, err := secinject.NewSecretChain()
+	chain, err := secretschain.NewSecretChain() //
 	if err != nil {
 		log.Errorf("%s unable to generate secrets chain:  %v", logPrefix, err.Error())
 	}
 
-	prettyJSON, _ := json.MarshalIndent(s, "", "    ")
-	//log.Debugf("s: %s\n", string(prettyJSON) )
-	fmt.Printf("%s\n", string(prettyJSON))
-
-	az, err := secinject.NewAzKVault()
+	// Azure KeyVault
+	_, err = secinject.NewAzKVault(chain)
 	if err != nil {
 		log.Errorf("%s unable to generate secrets chain:  %v", logPrefix, err.Error())
 	}
 
-	prettyJSON, _ = json.MarshalIndent(az.Chain, "", "    ")
-	//log.Debugf("s: %s\n", string(prettyJSON) )
-	fmt.Printf("%s\n", string(prettyJSON))
-
-}
-
-
-//
-// main function
-//
-func main_good() {
-	//
-	// HC Vault secrets
-	//
-
-	// new instance of HC vault client
-	vlt, err := secinject.NewHashicorpVault()
+	// HC Vault
+	hc, err := secinject.NewHashicorpVaultClient(chain)
 	if err != nil {
-			log.Fatal(err)
+		log.Errorf("%s unable to generate secrets chain:  %v", logPrefix, err.Error())
 	}
-	if err = vlt.PopulateSecrets(); err != nil  { // alright, lets pull 'em, out of There! Push, push! Push! Oh, no.. thats pull, pull..
-		log.Fatal(err)
-	}
-	//log.Debugf("Captured env vars:\n\t %v \n\n", vlt.EnvVars.Secrets)
-	//log.Debugf("Captured file vars:\n\t %v \n\n", vlt.FileVars)
+	prettyJSON, _ := json.MarshalIndent(hc.Chain, "", "    ") ; fmt.Printf("%s\n", string(prettyJSON))
 
+	// Now, set Env Vars with secrets and files
 	// set secrets as  env vars
-	for k, v := range vlt.EnvVars.Secrets {
-		_ = os.Setenv(k, v)
+	for idx, _ := range chain.Secrets {
+		if chain.Secrets[idx].EnvVar != "" {
+			_ = os.Setenv(chain.Secrets[idx].EnvVar , chain.Secrets[idx].Secret)
+		}
 	}
 	// generate secret files
-	for k, v := range vlt.FileVars { // itterate through all files we came know of
-		for _, s := range v.Secrets {	// each file may or may not have many many secrets.. who know...
-
-			err := generateSecretsFile( k, "", s )
+	for idx, _ := range chain.Secrets { // iterate through all files we came know of
+		if chain.Secrets[idx].FilePath != "" {
+			err := generateSecretsFile(chain.Secrets[idx].FilePath + chain.Secrets[idx].Name, "", chain.Secrets[idx].Secret)
 			if err != nil {
 				log.Errorf("%s unable to generate secrets file:  %v", logPrefix, err.Error())
 			}
 		}
 	}
 
-	//
-	// Azure KeyVault secrets
-	//
-
-	// init
-	sv := secinject.NewAzureKVault() // oh lala we have new AZ vault! Shiny!
-	// populate secrets from vault
-	err = sv.PopulateSecret( pullSecret ) // err..  okay, Doc, pull em!
-	if err != nil {
-		log.Errorf("%s errors while populating the secrets:  %v", logPrefix, err.Error())
-	}
-
-	// apply secrets to Pod env
-	for index, _ := range sv.EnvVarSecrets {
-		_ = os.Setenv(sv.EnvVarSecrets[index].EnvVarName, sv.EnvVarSecrets[index].Secret)
-	}
-	for index, _ := range sv.FileSecrets {
-		err := generateSecretsFile( sv.FileSecrets[index].FileMntPath, "", sv.FileSecrets[index].Secret )
-		if err != nil {
-			log.Errorf("%s unable to generate secrets file:  %v", logPrefix, err.Error())
-		}
-	}
-
+	// ..and the final part to call the command
 	if len(os.Args) == 1 {
 		log.Fatalf("%s no command is given, currently vault-env can't determine the entrypoint (command), please specify it explicitly", logPrefix)
 	} else {
@@ -188,32 +141,10 @@ func main_good() {
 	}
 	log.Debugf("%s azure key vault env injector successfully injected env variables with secrets", logPrefix)
 	log.Debugf("%s shutting down azure key vault env injector", logPrefix)
+
 }
 
 
-func pullSecret (vault, secName string) (string, error) {
-	authorizer, err := kvauth.NewAuthorizerFromEnvironment()
-	if err != nil {
-		s := fmt.Sprintf("Can't initialize authorizer: %v", err.Error())
-		return "", errors.New(s)
-	}
-	bc := keyvault.New()
-	bc.Authorizer = authorizer
-	secretResp, err := getSecret(bc, vault, secName)
-	if err != nil {
-		s := fmt.Sprintf("%v", err.Error())
-		return "", errors.New(s)
-	} else {
-		return *secretResp.Value, nil
-	}
-}
-//
-// Low level function to get the secret from the vault based on its name
-//
-func getSecret(vaultClient keyvault.BaseClient, vaultname string, secname string) (result keyvault.SecretBundle, err error) {
-	log.Debugf("%s Making a call to:  https://%s.vault.azure.net to retrieve value for KEY: %s\n", logPrefix, vaultname, secname)
-	return vaultClient.GetSecret(context.Background(), "https://"+vaultname+".vault.azure.net", secname, "")
-}
 
 //
 // Function  creates secrets file, writes secret to it and makes file read-only
@@ -256,38 +187,4 @@ func generateSecretsFile(mntPath, secName, secret string) error {
 
 	}
 	return nil
-}
-
-//
-// debug function
-//
-func logRequest() autorest.PrepareDecorator {
-	return func(p autorest.Preparer) autorest.Preparer {
-		return autorest.PreparerFunc(func(r *http.Request) (*http.Request, error) {
-			r, err := p.Prepare(r)
-			if err != nil {
-				log.Debugln(err)
-			}
-			dump, _ := httputil.DumpRequestOut(r, true)
-			log.Debugln(string(dump))
-			return r, err
-		})
-	}
-}
-
-//
-// debug function
-//
-func logResponse() autorest.RespondDecorator {
-	return func(p autorest.Responder) autorest.Responder {
-		return autorest.ResponderFunc(func(r *http.Response) error {
-			err := p.Respond(r)
-			if err != nil {
-				log.Debugln(err)
-			}
-			dump, _ := httputil.DumpResponse(r, true)
-			log.Debugln(string(dump))
-			return err
-		})
-	}
 }
