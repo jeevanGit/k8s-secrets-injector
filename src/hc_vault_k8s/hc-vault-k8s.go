@@ -64,18 +64,25 @@ func (v *HCVault) Authenticate() (string, error) {
 	jwt := string(bytes.TrimSpace(content))
 	log.Debugf("using jwt to login: %s", jwt)
 	log.Debugf("using Role to login: %s", v.Role)
+	log.Debugf("using Address to login: %s", v.client.Address())
 
 	// authenticate
 	data := make(map[string]interface{})
 	data["role"] = v.Role
 	data["jwt"] = jwt
 
-	s, err := vaultLogical(v.client).Write( path.Join( utils.FixAuthMountPath(v.AuthMountPath), "login" ), data )
+	c := vaultLogical(v.client)
+	s, err := c.Write( path.Join( utils.FixAuthMountPath(v.AuthMountPath), "login" ), data )
 	if err != nil {
 		return empty, errors.Wrapf(err, "login failed with role from environment variable VAULT_ROLE: %q", v.Role)
+	}else{
+		log.Debugf("Successful login with role: %s", v.Role)
 	}
+
 	if len(s.Warnings) > 0 {
 		return empty, fmt.Errorf("login failed with: %s", strings.Join(s.Warnings, " - "))
+	}else{
+		log.Debugf("No warnings.")
 	}
 	return s.Auth.ClientToken, nil
 }
