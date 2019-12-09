@@ -21,14 +21,7 @@ type HCVaultClientStruct struct {
   	Vault               *hcvault.HCVault
   	VaultClients        map[string]*kv.VaultClient
   	VaultToken          string
-
 	Chain 				*SecretChainStruct // Chain of secrets populated from the env vars
-
-	// this is is a deprecated part
-  EnvVars 		        EnvVarStruct // Map of secrets pairs for environment variables
-  // One file may have multiple secrets
-  FileVars            map[string]FileVarStruct  // map of File name to Map of secret pairs (secret name - actual secret)
-  //Vars  map[string]SecretStruct // map of secret name to struct SecretStruct
 }
 
 // Create new HC vault client and populate the environment in it
@@ -43,52 +36,36 @@ func NewHashicorpVaultClient() (*HCVaultClientStruct, error) {
 	if err != nil {
 			return v, errors.New( fmt.Sprintf("error: %s ", err.Error() ) )
 	}
-  log.Debugf("successfully authenticated to vault")
+  	log.Debugf("successfully authenticated to vault")
 	log.Debugf("new token: %s", v.VaultToken)
   // set the token
   	v.Vault.UseToken(v.VaultToken)
+	v.Chain, err = NewSecretChain()	// let's spin up the secrets Chain and init it with the env..
+  	v.VaultClients = make(map[string]*kv.VaultClient) // init map of VaultClient's
 
-	v.Chain, err = NewSecretChain()	// let's spin up the secrets chain from the env..
-
-	// init VaultClient
-  	v.VaultClients = make(map[string]*kv.VaultClient)
-  	//v.EnvVars = EnvVarStruct{}
-  	//v.EnvVars.Secrets = make(map[string]string)
-
-  	err = v.Prep()
-	if err != nil {
-		return nil, err
+  	// do some prep warm-ups
+	if err = v.Prep(); err != nil {
+		return nil, err // ops Huston, we have problem..
 	}
 
+	// this is main part
 	for idx, _ := range v.Chain.Secrets { // loop through all the secrets we fished out from the env.
 		if v.Chain.Secrets[idx].Origin == hcVaultVarName { // filter out everything but Hashicrp origins
 			// Huston, we have Take Off!
-			log.Debugf("The secrets struct: %s\n", v.Chain.Secrets[idx])
-
 			// here is where we're doing some damage and pulling secrets
 			m :=  v.Chain.Secrets[idx].Name
 			mount := strings.SplitN( m, "/", 2)[0]
-			log.Debugf("NewHashicorpVaultClient: mount: %s", mount)
-
-			vc := v.VaultClients[mount]; log.Debugf("vc looks like this: %v", vc)
-			s, err := vc.Read( m )
+			s, err := v.VaultClients[mount].Read( m )
 			if err != nil { return v, err }
 			if s == nil {
 				log.Warningf("Secret '%s' not found in the vault.", v)
 				continue
-			}else{
+			}else{ // secret is found and its good
 				log.Debugf( "secret: %s has value: %s", v, s )
 				if j, err := json.Marshal(s); err == nil {
 					v.Chain.Secrets[idx].Secret = string( j )
 				}
 			}
-
-			//secretResp, err := getSecret( v.VaultClient, nameKV, v.Chain.Secrets[idx].Name )  // let's take this baby out for a walk..
-			//if err != nil {
-			//	log.Errorf("unable to generate secrets chain:  %v", err.Error()) // what the.
-			//} else {
-			//	v.Chain.Secrets[idx].Secret = *secretResp.Value  // miracles are real!
-			//}
 		}
 	}
 
