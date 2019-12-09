@@ -1,0 +1,17 @@
+
+export APP_NAME="ac0001"
+
+export CLUSTER="secrets-operator-test"
+export APISERVER="https://${CLUSTER}-cluster-dns"
+export NAMESPACE="default"
+export SERVICEACCOUNT="${APP_NAME}-${NAMESPACE}-serviceaccount"
+
+export IMAGE="<>.azurecr.io/secret-injector:v1alpha5"
+
+#export VAULT_ADDR="http://:8200"
+export VAULT_AUTH_MOUNT_PATH="${CLUSTER}"
+export VAULT_ROLE="${CLUSTER}-${NAMESPACE}-${APP_NAME}-auth"
+export VAULT_TOKEN_DIR="/home/vault"
+export VAULT_TOKEN_PATH="${VAULT_TOKEN_DIR}/.vault-token"
+
+export HC_IP=http://:8200
