@@ -309,7 +309,7 @@ What binary `test-deployment` does is set of following steps:
 ```
 
 
-4. Then, it creates container named `test-client` where we run actual application [./test-client/my-application-script.sh](./test-client/my-application-script.sh)
+4. Then, it creates container named `test-client` where we run actual application [./test/my-application-script.sh](./test/my-application-script.sh)
 
 ```go
 			Containers: []apiv1.Container{
